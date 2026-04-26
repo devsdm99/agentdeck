@@ -6,7 +6,7 @@ Scan any repository with a Claude Code multi-agent setup, parse `.claude/agents/
 
 ## Status
 
-🟡 **Pre-alpha — week 0.** This repo currently contains only the README, license and roadmap. The app is being built in public, one week at a time. Track progress at the [Multiagente newsletter](https://sergiodima.dev/multiagente).
+🟡 **Pre-alpha — week 0.** This repo currently contains only the README and roadmap. The app is being built in public, one week at a time. Track progress at the [Multiagente newsletter](https://sergiodima.dev/multiagente).
 
 The full build process — including mistakes, decisions and the multi-agent setup used to write the app itself — is documented every Tuesday at [sergiodima.dev/multiagente](https://sergiodima.dev/multiagente).
 
@@ -31,19 +31,6 @@ agentdeck is **freemium**. The free tier is generous enough to be useful on smal
 | **Trial** | 10 days of Pro | No card required at signup |
 
 Pricing is final but the free tier limits may evolve based on real usage data during the public-build phase.
-
-## License
-
-agentdeck is published under the **Business Source License 1.1 (BSL 1.1)** — see [LICENSE](./LICENSE).
-
-In plain language:
-
-- ✅ You can read all the code, learn from it, run it locally for personal or internal use, and contribute back
-- ✅ You can fork it, study it, modify it, build on top of it
-- ❌ You **cannot** offer agentdeck (or a substantially similar product based on this code) as a hosted commercial service to third parties
-- 🔓 On **2030-04-26** (4 years from this commit), the license automatically converts to **MIT** and all restrictions disappear
-
-This model is used by Sentry, MariaDB, CockroachDB and n8n. The goal is simple: keep the code open and auditable while protecting the project's ability to fund itself during the early years.
 
 ## Built with
 
@@ -70,10 +57,10 @@ The full multi-agent Claude Code setup used to build this app lives in a separat
 
 ## Follow the build
 
-- 📰 Newsletter (Spanish): [sergiodima.dev/multiagente](https://sergiodima.dev/multiagente)
-- 🐦 X: follow [@sergio_ds2](https://x.com/) (or whatever handle you actually use)
-- 💼 LinkedIn: [linkedin.com/in/sergio-ds2](https://linkedin.com/in/sergio-ds2)
-- 🛠️ Setup repo: [agentdeck-claude-setup](https://github.com/devsdm99/agentdeck-claude-setup)
+- Newsletter (Spanish): [sergiodima.dev/multiagente](https://sergiodima.dev/multiagente)
+- LinkedIn: [linkedin.com/in/sergio-ds2](https://linkedin.com/in/sergio-ds2)
+- Portfolio: [sergiodima.dev](https://sergiodima.dev)
+- Setup repo: [agentdeck-claude-setup](https://github.com/devsdm99/agentdeck-claude-setup)
 
 ---
 
