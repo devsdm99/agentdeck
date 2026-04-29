@@ -82,9 +82,13 @@ drizzle.config.ts           # Config para drizzle-kit
 
 Ver `.env.example`. Copiar a `.env.local` y rellenar. Requeridas para arrancar:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `DATABASE_URL` (cadena de conexión Postgres de Supabase, formato `postgresql://...`)
+- `NEXT_PUBLIC_SUPABASE_URL` — URL del proyecto Supabase
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — JWT pública (frontend)
+- `SUPABASE_SERVICE_ROLE_KEY` — JWT privada (server, bypass RLS) — NUNCA en código cliente
+- `DATABASE_URL` — Postgres del **pooler** de Supabase (puerto 6543), usado tanto en runtime como en drizzle-kit. Es IPv4-routable.
+- `DIRECT_URL` — opcional, conexión directa puerto 5432 (IPv6-only desde Q4 2024). Solo útil desde redes con IPv6 público (algunos deploys de Vercel/GitHub Actions). Desde redes sin IPv6 NO funciona y `drizzle-kit` se cuelga sin error — usar siempre `DATABASE_URL` en ese caso.
+
+**Nunca commiteamos `.env.local`** (está en `.gitignore`). Solo `.env.example` con valores vacíos.
 
 ## Comandos
 
