@@ -22,7 +22,7 @@ if (!url) {
 }
 
 export default {
-  schema: './src/lib/db/schema.ts',
+  schema: './src/lib/db/schema/index.ts',
   out: './drizzle/migrations',
   dialect: 'postgresql',
   dbCredentials: { url },

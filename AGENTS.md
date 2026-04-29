@@ -14,89 +14,91 @@ Construido en público durante 8 semanas con un equipo de 6 agentes Claude Code 
 
 ## Stack
 
-- **Framework:** Next.js 15 (App Router) + TypeScript
+- **Framework:** Next.js 15+ (App Router) + TypeScript estricto
 - **UI:** Tailwind CSS v4 + shadcn/ui (estilo "new-york", base slate)
 - **DB:** Postgres en **Supabase** + **Drizzle ORM**
 - **Auth:** Supabase Auth (`@supabase/ssr`)
-- **Validación:** Zod
+- **Validación:** Zod (incluyendo `process.env`)
+- **Lint:** ESLint 9 flat config + `typescript-eslint` + plugin oficial de Next
 - **Pagos (semana 6+):** Stripe
 - **AI calls:** Anthropic SDK (solo donde aporte: scoring, summaries)
 - **Hosting:** Vercel
+
+## Disciplina arquitectónica
+
+La estructura, las reglas de tipado y los límites entre capas están **codificados como skill** en `.claude/skills/arch-guard/SKILL.md`. Esa es la fuente de verdad. Lee y aplica `arch-guard` cuando edites cualquier `.ts`/`.tsx` del repo.
+
+Resumen de las reglas (consultar `arch-guard` para el detalle):
+
+- **Folder layout:** `src/app` (rutas) · `src/components` (UI) · `src/features` (lógica de dominio en vertical slices) · `src/lib` (infraestructura, DB, env) · `src/shared` (tipos/errores cross-feature) · `src/utils` (helpers puros) · `src/hooks` (React hooks).
+- **Server vs Client:** Server Components por defecto. DB y service-role solo en módulos con `import 'server-only'`. Mutaciones vía Server Actions, no API routes (salvo webhooks externos).
+- **Tipado:** cero `any`, cero `!` non-null assertion, cero `as` sin justificación. Tipos de DB derivados de Drizzle (`$inferSelect`/`$inferInsert`). Inputs validados con Zod.
+- **Schema:** dividido por dominio en `src/lib/db/schema/`. Todos los enums vía `pgEnum`. Listas estructuradas → tabla hija, no `jsonb`. `jsonb` solo para input verdaderamente heterogéneo (frontmatter YAML).
+- **Imports:** alias `@/`. Nunca rutas relativas con `../../..`. Las capas inferiores no importan de las superiores.
 
 ## Estructura
 
 ```
 src/
-├── app/                    # App Router de Next.js 15
-│   ├── layout.tsx
-│   ├── page.tsx            # Landing pública
-│   └── globals.css         # Tailwind + shadcn theme
+├── app/                         App Router (rutas, layouts, pages)
+│   ├── (marketing)/             Landing pública
+│   ├── (app)/                   Dashboard autenticado
+│   ├── api/                     Solo webhooks externos (Stripe, GitHub)
+│   └── ...
 ├── components/
-│   └── ui/                 # shadcn/ui (button, etc.)
+│   ├── ui/                      shadcn (auto-generado)
+│   ├── layout/                  Header, Sidebar, Footer
+│   └── features/                Componentes de dominio
+├── features/                    Vertical slices: actions/queries/schemas/service
+│   ├── repos/
+│   ├── scans/
+│   ├── auth/
+│   └── billing/
 ├── lib/
 │   ├── db/
-│   │   ├── index.ts        # Drizzle client (postgres-js)
-│   │   └── schema.ts       # Tablas Drizzle
+│   │   ├── index.ts             Drizzle client (server-only)
+│   │   └── schema/              Schema dividido por dominio
+│   │       ├── enums.ts
+│   │       ├── profiles.ts
+│   │       ├── repos.ts
+│   │       ├── scans.ts
+│   │       ├── relations.ts
+│   │       └── index.ts
 │   ├── supabase/
-│   │   ├── client.ts       # Cliente browser (Client Components)
-│   │   └── server.ts       # Cliente servidor (Server Components, Server Actions)
-│   └── utils.ts            # cn() helper de shadcn
-drizzle.config.ts           # Config para drizzle-kit
-.env.example                # Plantilla de variables (copiar a .env.local)
+│   │   ├── client.ts            Cliente browser
+│   │   └── server.ts            Cliente servidor (server-only)
+│   ├── utils.ts                 cn() helper de shadcn (NO MOVER)
+│   └── env.ts                   process.env validado con Zod
+├── shared/
+│   ├── types/
+│   ├── constants/
+│   └── errors.ts                Clases de error tipadas
+├── utils/                       Helpers puros sin deps de proyecto
+└── hooks/                       React hooks (Client only)
 ```
-
-## Reglas del proyecto
-
-### Server vs Client Components
-
-- **Server Components por defecto.** Solo añadir `'use client'` cuando la pieza necesite estado, eventos del navegador o hooks de cliente.
-- **Para consultar la DB:** hacerlo desde Server Components o Server Actions, nunca desde Client Components.
-- **Para mutaciones:** Server Actions (`'use server'`), no API routes salvo webhooks externos (Stripe).
-
-### Database
-
-- Cualquier cambio de schema → editar `src/lib/db/schema.ts` → `npx drizzle-kit generate` → revisar SQL → `npx drizzle-kit migrate`.
-- Nunca escribir SQL crudo en componentes; usar el query builder de Drizzle.
-- `profiles.id` siempre = `auth.users.id` de Supabase (relación 1:1).
-
-### Auth
-
-- Cliente browser: `import { createClient } from '@/lib/supabase/client'`.
-- Cliente servidor: `import { createClient } from '@/lib/supabase/server'` + `await createClient()`.
-- Middleware de refresh de sesión se añadirá cuando se implemente login (semana 2-3).
-
-### Estilos
-
-- Tailwind v4 (sintaxis nueva, `@import "tailwindcss"`).
-- Componentes UI: shadcn `npx shadcn@latest add <component>`.
-- Nada de CSS-in-JS, nada de styled-components.
-
-### Nomenclatura
-
-- Componentes: `PascalCase.tsx`.
-- Rutas (`app/`): `kebab-case/page.tsx`.
-- Tablas en DB: `snake_case`.
-- Variables de entorno: `SCREAMING_SNAKE_CASE`.
 
 ## Variables de entorno
 
-Ver `.env.example`. Copiar a `.env.local` y rellenar. Requeridas para arrancar:
+Ver `.env.example`. Copiar a `.env.local` y rellenar. Validadas en runtime con Zod (`src/lib/env.ts`):
 
 - `NEXT_PUBLIC_SUPABASE_URL` — URL del proyecto Supabase
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — JWT pública (frontend)
 - `SUPABASE_SERVICE_ROLE_KEY` — JWT privada (server, bypass RLS) — NUNCA en código cliente
 - `DATABASE_URL` — Postgres del **pooler** de Supabase (puerto 6543), usado tanto en runtime como en drizzle-kit. Es IPv4-routable.
 - `DIRECT_URL` — opcional, conexión directa puerto 5432 (IPv6-only desde Q4 2024). Solo útil desde redes con IPv6 público (algunos deploys de Vercel/GitHub Actions). Desde redes sin IPv6 NO funciona y `drizzle-kit` se cuelga sin error — usar siempre `DATABASE_URL` en ese caso.
+- `ANTHROPIC_API_KEY` — opcional hasta semana 3+
+- `STRIPE_*` — opcional hasta semana 6
 
-**Nunca commiteamos `.env.local`** (está en `.gitignore`). Solo `.env.example` con valores vacíos.
+**Nunca commiteamos `.env.local`** (está en `.gitignore`).
 
 ## Comandos
 
 ```bash
 npm run dev                 # Dev server
 npm run build               # Build producción
-npm run lint                # ESLint
-npx drizzle-kit generate    # Generar migración SQL desde schema.ts
+npm run lint                # ESLint (cero any, cero non-null assertion, etc.)
+npm run typecheck           # tsc --noEmit
+npx drizzle-kit generate    # Generar migración SQL desde schema/
 npx drizzle-kit migrate     # Aplicar migraciones a la DB
 npx drizzle-kit studio      # UI para explorar la DB
 npx shadcn@latest add <c>   # Añadir componente shadcn
