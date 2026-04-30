@@ -2,22 +2,25 @@
 
 > Your Claude Code agents, visualized.
 
-Scan any repository with a Claude Code multi-agent setup, parse `.claude/agents/`, `.claude/skills/` and `.claude/hooks/`, and explore them in a clean visual dashboard. See what each agent does, what tools it uses, what prompts it ships with, and how they interact — without opening 12 markdown files in your editor.
+Scan any repository with a Claude Code multi-agent setup, parse `.claude/agents/`, `.claude/skills/`, `.claude/hooks/` and `.claude/commands/`, and explore them in a clean visual dashboard. See what each agent does, what tools it uses, what prompts it ships with — without opening twelve markdown files in your editor.
 
 ## Status
 
-🟡 **Pre-alpha — week 0.** This repo currently contains only the README and roadmap. The app is being built in public, one week at a time. Track progress at the [Multiagente newsletter](https://sergiodima.dev/multiagente).
+🟡 **Pre-alpha — week 2.** A real backend already runs: the scanner accepts a public GitHub URL or a `.zip` upload, parses the `.claude/` directory in memory (no `git clone`, no filesystem), and stores a fully-typed snapshot in Postgres. The dashboard UI is the next layer to land. Track progress every Tuesday at the [Multiagente newsletter](https://sergiodima.dev/multiagente).
 
-The full build process — including mistakes, decisions and the multi-agent setup used to write the app itself — is documented every Tuesday at [sergiodima.dev/multiagente](https://sergiodima.dev/multiagente).
+The full build process — including mistakes, decisions and the multi-agent setup used to write the app itself — is documented in public.
 
-## What it does (planned)
+## What it does (today and planned)
 
-- **Repository scan** — point agentdeck at a repo with `.claude/` and it parses every agent, skill, hook
-- **Visual dashboard** — sortable cards, search, tags, quick filters
-- **Agent detail view** — full prompt, tools, dependencies, last modified
-- **Diff & history** — compare an agent across commits, see how the prompt evolved
-- **Export** — markdown, JSON, or shareable public links
-- **Multi-repo** — keep track of agentdeck setups across all your projects in one place
+- ✅ **Repository scan from GitHub URL** — fetches the tarball from `codeload.github.com`, streams it through `tar-stream` + `zlib`, and parses `.claude/agents/`, `.claude/skills/`, `.claude/hooks/`, `CLAUDE.md`, `AGENTS.md` in memory. Public repos work; private repos via OAuth come later.
+- ✅ **Repository scan from zip upload** — same pipeline, different ingest. `JSZip` produces virtual files, the rest is identical.
+- ✅ **Typed parsers** — YAML frontmatter for agents and skills, hook events normalized from `settings.json` (`PreToolUse → pre_tool_use`).
+- ✅ **Immutable snapshot model** — every scan is a row of its own with timestamps and `sha256` per file. Enables history and diff between scans.
+- 🟡 **Visual dashboard** — sortable cards, search, tags, quick filters. *(Coming weeks 3–6.)*
+- 🟡 **Agent / skill / hook detail view** — full prompt, tools used, last modified. *(Weeks 3–6.)*
+- 🟡 **Diff & history** — compare an item across snapshots. *(Pro feature, week 5+.)*
+- 🟡 **Auth & multi-tenant** — Supabase Auth, login/signup, RLS. *(Week 2–3.)*
+- 🟡 **Billing** — Stripe, Free + Pro. *(Week 6.)*
 
 ## Pricing
 
@@ -30,30 +33,55 @@ agentdeck is **freemium**. The free tier is generous enough to be useful on smal
 | **Pro Annual** | 109 € / year | Same as Pro, ~30% off vs. monthly |
 | **Trial** | 10 days of Pro | No card required at signup |
 
-Pricing is final but the free tier limits may evolve based on real usage data during the public-build phase.
+Pricing is firm but the free tier limits may evolve based on real usage data during the public-build phase.
 
-## Built with
+## Stack
 
-- **Astro** — static site + content layer
-- **React** — interactive islands
-- **Tailwind CSS** — styling
-- **Anthropic SDK** — only where the model itself adds value (e.g. agent quality scoring, summary generation)
-- **Cloudflare Pages** — hosting
+- **Framework:** Next.js 15+ (App Router) + TypeScript strict mode
+- **UI:** Tailwind CSS v4 + shadcn/ui (style "new-york", base slate)
+- **Database:** Postgres on Supabase
+- **ORM:** Drizzle ORM (schema in TypeScript, migrations in SQL)
+- **Auth:** Supabase Auth (`@supabase/ssr`) — *coming week 2*
+- **Validation:** Zod, including `process.env`
+- **Payments:** Stripe — *coming week 6*
+- **AI calls:** Anthropic SDK — only where the model itself adds value (e.g. agent quality scoring, summary generation)
+- **Hosting:** Vercel
+- **Lint:** ESLint 9 flat config + `typescript-eslint` (zero `any`, zero non-null assertions)
+
+The architecture, folder layout and TypeScript discipline are codified as a Claude Code skill: [`.claude/skills/arch-guard/SKILL.md`](.claude/skills/arch-guard/SKILL.md). It activates automatically on any `.ts/.tsx` edit and enforces the rules.
 
 The full multi-agent Claude Code setup used to build this app lives in a separate repo: [agentdeck-claude-setup](https://github.com/devsdm99/agentdeck-claude-setup).
 
 ## Roadmap (8-week public build)
 
-| Week | Theme | Output |
+| Week | Theme | Status |
 |---|---|---|
-| 1 | First `CLAUDE.md` for agentdeck | Real config committed |
-| 2 | First subagent: View Builder | Prompt + tooling explained |
-| 3 | Skills vs Subagents vs Agent Teams in this stack | Working examples in repo |
-| 4 | Preventing two agents from editing the same file | Hooks demo |
-| 5 | First big mistake (there will be one) | Post-mortem |
-| 6 | Pricing decision: free tier limits, Pro features | Discussed in public |
-| 7 | First user-facing release | v0.1 deployed |
-| 8 | 8-week metrics: what worked, what got cut | Honest report |
+| 0 | Project announced, repos opened | ✅ Done |
+| 1 | First `CLAUDE.md` for agentdeck + first data model | ✅ Done |
+| 2 | Scanner end-to-end (URL + zip) + Supabase Auth | 🟡 In progress |
+| 3 | First subagent (View Builder), first dashboard pages | 📝 Pending |
+| 4 | Skills vs Subagents vs Agent Teams in this stack | 📝 Pending |
+| 5 | Pricing decision: free tier limits, Pro features | 📝 Pending |
+| 6 | Stripe + first user-facing release (v0.1) | 📝 Pending |
+| 7 | Deployed at agentdeck.sergiodima.dev | 📝 Pending |
+| 8 | 8-week metrics: what worked, what got cut | 📝 Pending |
+
+## Local development
+
+Requirements: Node 20+, a Supabase project, an `.env.local` with the values listed in [.env.example](.env.example).
+
+```bash
+npm install
+npm run dev
+```
+
+To apply the latest schema to your own Supabase:
+
+```bash
+npx drizzle-kit migrate
+```
+
+To inspect data, use the **SQL Editor** or **Table Editor** in your Supabase dashboard. Drizzle Studio is intentionally not part of the workflow — see [AGENTS.md](AGENTS.md) for details.
 
 ## Follow the build
 

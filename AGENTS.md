@@ -100,9 +100,10 @@ npm run lint                # ESLint (cero any, cero non-null assertion, etc.)
 npm run typecheck           # tsc --noEmit
 npx drizzle-kit generate    # Generar migración SQL desde schema/
 npx drizzle-kit migrate     # Aplicar migraciones a la DB
-npx drizzle-kit studio      # UI para explorar la DB
 npx shadcn@latest add <c>   # Añadir componente shadcn
 ```
+
+Para inspeccionar datos en la DB se usa el SQL Editor del dashboard de Supabase, o cualquier cliente Postgres apuntando al `DATABASE_URL`. **Drizzle Studio queda fuera del flujo** — tiene problemas con el pooler de Supabase (Mixed Content / Private Network Access) y no aporta sobre lo que ya da Supabase.
 
 ## Build-in-public
 
