@@ -17,7 +17,6 @@ const serverEnvSchema = z.object({
   STRIPE_SECRET_KEY: optional(z.string().min(1)),
   STRIPE_WEBHOOK_SECRET: optional(z.string().min(1)),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optional(z.string().min(1)),
-  SCANNER_BOOTSTRAP_TOKEN: optional(z.string().min(16)),
 });
 
 const clientEnvSchema = z.object({

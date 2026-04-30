@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 import { runScanFromZip } from '@/features/scans/actions';
 import { scanFromZipMetaSchema } from '@/features/scans/schemas';
-import { serverEnv } from '@/lib/env';
 import {
+  ForbiddenError,
   NotFoundError,
   UnauthorizedError,
   ValidationError,
 } from '@/shared/errors';
 import { getRepoById } from '@/features/repos/queries';
+import { requireUser } from '@/features/auth/queries';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    assertBootstrapToken(request);
-
+    const user = await requireUser();
     const formData = await request.formData();
     const repoIdEntry = formData.get('repoId');
     const fileEntry = formData.get('file');
@@ -28,9 +28,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const meta = scanFromZipMetaSchema.parse({ repoId: repoIdEntry });
-
     const repo = await getRepoById(meta.repoId);
     if (!repo) throw new NotFoundError(`Repo not found: ${meta.repoId}`);
+    if (repo.userId !== user.id) {
+      throw new ForbiddenError('No autorizado a escanear este repo');
+    }
 
     const buffer = await fileEntry.arrayBuffer();
     const result = await runScanFromZip(meta, buffer);
@@ -40,23 +42,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 }
 
-function assertBootstrapToken(request: Request): void {
-  const env = serverEnv();
-  const expected = env.SCANNER_BOOTSTRAP_TOKEN;
-  if (!expected) {
-    throw new UnauthorizedError(
-      'SCANNER_BOOTSTRAP_TOKEN not configured on server',
-    );
-  }
-  const header = request.headers.get('authorization');
-  if (header !== `Bearer ${expected}`) {
-    throw new UnauthorizedError('Invalid bootstrap token');
-  }
-}
-
 function errorResponse(err: unknown): NextResponse {
   if (err instanceof UnauthorizedError) {
     return NextResponse.json({ error: err.message }, { status: 401 });
+  }
+  if (err instanceof ForbiddenError) {
+    return NextResponse.json({ error: err.message }, { status: 403 });
   }
   if (err instanceof NotFoundError) {
     return NextResponse.json({ error: err.message }, { status: 404 });
