@@ -1,21 +1,29 @@
 import { z } from 'zod';
 
+const optional = (schema: z.ZodString) =>
+  z
+    .string()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined))
+    .pipe(schema.optional());
+
 const serverEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   DATABASE_URL: z.string().url(),
-  DIRECT_URL: z.string().url().optional(),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  DIRECT_URL: optional(z.string().url()),
+  ANTHROPIC_API_KEY: optional(z.string().min(1)),
+  STRIPE_SECRET_KEY: optional(z.string().min(1)),
+  STRIPE_WEBHOOK_SECRET: optional(z.string().min(1)),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optional(z.string().min(1)),
+  SCANNER_BOOTSTRAP_TOKEN: optional(z.string().min(16)),
 });
 
-const clientEnvSchema = serverEnvSchema.pick({
-  NEXT_PUBLIC_SUPABASE_URL: true,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: true,
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: true,
+const clientEnvSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optional(z.string().min(1)),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
