@@ -28,32 +28,37 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Entrar a agentdeck</CardTitle>
-          <CardDescription>
-            Accede con tu email y contraseña.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AuthForm
-            action={loginAction}
-            submitLabel="Entrar"
-            pendingLabel="Entrando…"
-            next={next}
-          />
-        </CardContent>
-        <CardFooter>
-          <p className="text-sm text-muted-foreground">
-            ¿Aún no tienes cuenta?{' '}
-            <Link href="/signup" className="underline">
-              Crea una
-            </Link>
-            .
-          </p>
-        </CardFooter>
-      </Card>
+    <div className="mx-auto flex w-full flex-1 items-center justify-center px-4 py-16">
+      <div className="w-full max-w-sm">
+        <Card className="border-border/70 shadow-sm">
+          <CardHeader className="space-y-1.5">
+            <CardTitle className="text-xl">Entrar a agentdeck</CardTitle>
+            <CardDescription>
+              Accede con tu email y contraseña.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AuthForm
+              action={loginAction}
+              submitLabel="Entrar"
+              pendingLabel="Entrando…"
+              next={next}
+            />
+          </CardContent>
+          <CardFooter className="border-t border-border/60 pt-4">
+            <p className="text-sm text-muted-foreground">
+              ¿Aún no tienes cuenta?{' '}
+              <Link
+                href="/signup"
+                className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+              >
+                Crea una
+              </Link>
+              .
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
   );
 }
