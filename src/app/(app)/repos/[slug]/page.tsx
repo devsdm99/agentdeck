@@ -86,7 +86,7 @@ export default async function RepoDetailPage({
         ) : (
           <div className="flex flex-col gap-3">
             {scans.map((scan) => (
-              <ScanRow key={scan.id} scan={scan} />
+              <ScanRow key={scan.id} scan={scan} repoSlug={slug} />
             ))}
           </div>
         )}
@@ -137,7 +137,13 @@ function SourceLine({
   );
 }
 
-function ScanRow({ scan }: { scan: ScanWithStats }): React.ReactElement {
+function ScanRow({
+  scan,
+  repoSlug,
+}: {
+  scan: ScanWithStats;
+  repoSlug: string;
+}): React.ReactElement {
   const isEmpty =
     scan.status === 'success' &&
     scan.totalFiles === 0 &&
@@ -146,52 +152,57 @@ function ScanRow({ scan }: { scan: ScanWithStats }): React.ReactElement {
     scan.hooksCount === 0;
 
   return (
-    <Card className="border-border/70">
-      <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusDot status={scan.status} />
-            <span className="text-sm font-medium">
-              {formatDate(scan.startedAt)}
-            </span>
-            {scan.branch ? (
-              <span className="font-mono text-xs text-muted-foreground">
-                · {scan.branch}
+    <Link
+      href={`/repos/${repoSlug}/scans/${scan.id}`}
+      className="group block focus:outline-none"
+    >
+      <Card className="border-border/70 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 group-focus-visible:ring-3 group-focus-visible:ring-ring/30">
+        <CardContent className="flex flex-wrap items-center justify-between gap-4 py-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusDot status={scan.status} />
+              <span className="text-sm font-medium">
+                {formatDate(scan.startedAt)}
               </span>
+              {scan.branch ? (
+                <span className="font-mono text-xs text-muted-foreground">
+                  · {scan.branch}
+                </span>
+              ) : null}
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                · {scan.trigger}
+              </span>
+            </div>
+            {scan.errorMessage ? (
+              <p className="truncate text-xs text-destructive">
+                {scan.errorMessage}
+              </p>
+            ) : isEmpty ? (
+              <p className="text-xs text-muted-foreground">
+                Este repo no tiene un directorio{' '}
+                <code className="rounded bg-muted px-1 py-0.5 font-mono">
+                  .claude/
+                </code>{' '}
+                en {scan.branch ?? 'la rama por defecto'}, o está vacío.
+              </p>
             ) : null}
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">
-              · {scan.trigger}
-            </span>
           </div>
-          {scan.errorMessage ? (
-            <p className="truncate text-xs text-destructive">
-              {scan.errorMessage}
-            </p>
-          ) : isEmpty ? (
-            <p className="text-xs text-muted-foreground">
-              Este repo no tiene un directorio{' '}
-              <code className="rounded bg-muted px-1 py-0.5 font-mono">
-                .claude/
-              </code>{' '}
-              en {scan.branch ?? 'la rama por defecto'}, o está vacío.
-            </p>
-          ) : null}
-        </div>
 
-        {!isEmpty ? (
-          <div className="flex flex-shrink-0 items-center gap-4 text-xs text-muted-foreground">
-            <Stat label="agents" value={scan.agentsCount} />
-            <Stat label="skills" value={scan.skillsCount} />
-            <Stat label="hooks" value={scan.hooksCount} />
-            <Stat label="files" value={scan.totalFiles} />
-          </div>
-        ) : (
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">
-            Sin contenido
-          </span>
-        )}
-      </CardContent>
-    </Card>
+          {!isEmpty ? (
+            <div className="flex flex-shrink-0 items-center gap-4 text-xs text-muted-foreground">
+              <Stat label="agents" value={scan.agentsCount} />
+              <Stat label="skills" value={scan.skillsCount} />
+              <Stat label="hooks" value={scan.hooksCount} />
+              <Stat label="files" value={scan.totalFiles} />
+            </div>
+          ) : (
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">
+              Sin contenido
+            </span>
+          )}
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 
