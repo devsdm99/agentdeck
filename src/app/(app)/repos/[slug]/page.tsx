@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { RescanButton } from '@/components/features/repos/rescan-button';
 
 type Params = Promise<{ slug: string }>;
 
@@ -65,11 +66,17 @@ export default async function RepoDetailPage({
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Scans</h2>
             <p className="text-sm text-muted-foreground">
-              Cada scan es un snapshot inmutable. {scans.length}{' '}
+              Cada scan es un snapshot inmutable.{' '}
+              {scans.length}{' '}
               {scans.length === 1 ? 'scan' : 'scans'} registrado
               {scans.length === 1 ? '' : 's'}.
             </p>
           </div>
+          {primarySource &&
+          primarySource.kind === 'url_public' &&
+          primarySource.url ? (
+            <RescanButton slug={repo.slug} />
+          ) : null}
         </header>
 
         {scans.length === 0 ? (

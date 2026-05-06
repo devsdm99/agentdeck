@@ -80,20 +80,22 @@ export async function persistScan(
       }
     }
 
-    const agentIdByName = new Map<string, string>();
     if (input.parsed.agents.length > 0) {
       const agentRows = input.parsed.agents
         .map((agent) => {
           const fileId = fileIdByPath.get(agent.path);
           if (!fileId) return null;
           return {
-            scanId,
-            fileId,
-            name: agent.name,
-            description: agent.description,
-            model: agent.model,
-            frontmatter: agent.frontmatter,
-            bodyMd: agent.bodyMd,
+            agent,
+            row: {
+              scanId,
+              fileId,
+              name: agent.name,
+              description: agent.description,
+              model: agent.model,
+              frontmatter: agent.frontmatter,
+              bodyMd: agent.bodyMd,
+            },
           };
         })
         .filter((v): v is NonNullable<typeof v> => v !== null);
@@ -101,40 +103,43 @@ export async function persistScan(
       if (agentRows.length > 0) {
         const inserted = await tx
           .insert(scanAgents)
-          .values(agentRows)
-          .returning({ id: scanAgents.id, name: scanAgents.name });
-        for (const row of inserted) agentIdByName.set(row.name, row.id);
-      }
+          .values(agentRows.map((r) => r.row))
+          .returning({ id: scanAgents.id, fileId: scanAgents.fileId });
+        const agentIdByFileId = new Map<string, string>();
+        for (const row of inserted) agentIdByFileId.set(row.fileId, row.id);
 
-      const toolRows: { agentId: string; toolName: string }[] = [];
-      for (const agent of input.parsed.agents) {
-        const agentId = agentIdByName.get(agent.name);
-        if (!agentId) continue;
-        const seen = new Set<string>();
-        for (const tool of agent.tools) {
-          if (seen.has(tool)) continue;
-          seen.add(tool);
-          toolRows.push({ agentId, toolName: tool });
+        const toolRows: { agentId: string; toolName: string }[] = [];
+        for (const { agent, row } of agentRows) {
+          const agentId = agentIdByFileId.get(row.fileId);
+          if (!agentId) continue;
+          const seen = new Set<string>();
+          for (const tool of agent.tools) {
+            if (seen.has(tool)) continue;
+            seen.add(tool);
+            toolRows.push({ agentId, toolName: tool });
+          }
         }
-      }
-      if (toolRows.length > 0) {
-        await tx.insert(scanAgentTools).values(toolRows);
+        if (toolRows.length > 0) {
+          await tx.insert(scanAgentTools).values(toolRows);
+        }
       }
     }
 
-    const skillIdByName = new Map<string, string>();
     if (input.parsed.skills.length > 0) {
       const skillRows = input.parsed.skills
         .map((skill) => {
           const fileId = fileIdByPath.get(skill.path);
           if (!fileId) return null;
           return {
-            scanId,
-            fileId,
-            name: skill.name,
-            description: skill.description,
-            frontmatter: skill.frontmatter,
-            bodyMd: skill.bodyMd,
+            skill,
+            row: {
+              scanId,
+              fileId,
+              name: skill.name,
+              description: skill.description,
+              frontmatter: skill.frontmatter,
+              bodyMd: skill.bodyMd,
+            },
           };
         })
         .filter((v): v is NonNullable<typeof v> => v !== null);
@@ -142,21 +147,22 @@ export async function persistScan(
       if (skillRows.length > 0) {
         const inserted = await tx
           .insert(scanSkills)
-          .values(skillRows)
-          .returning({ id: scanSkills.id, name: scanSkills.name });
-        for (const row of inserted) skillIdByName.set(row.name, row.id);
-      }
+          .values(skillRows.map((r) => r.row))
+          .returning({ id: scanSkills.id, fileId: scanSkills.fileId });
+        const skillIdByFileId = new Map<string, string>();
+        for (const row of inserted) skillIdByFileId.set(row.fileId, row.id);
 
-      const triggerRows: { skillId: string; triggerText: string }[] = [];
-      for (const skill of input.parsed.skills) {
-        const skillId = skillIdByName.get(skill.name);
-        if (!skillId) continue;
-        for (const trigger of skill.triggers) {
-          triggerRows.push({ skillId, triggerText: trigger });
+        const triggerRows: { skillId: string; triggerText: string }[] = [];
+        for (const { skill, row } of skillRows) {
+          const skillId = skillIdByFileId.get(row.fileId);
+          if (!skillId) continue;
+          for (const trigger of skill.triggers) {
+            triggerRows.push({ skillId, triggerText: trigger });
+          }
         }
-      }
-      if (triggerRows.length > 0) {
-        await tx.insert(scanSkillTriggers).values(triggerRows);
+        if (triggerRows.length > 0) {
+          await tx.insert(scanSkillTriggers).values(triggerRows);
+        }
       }
     }
 

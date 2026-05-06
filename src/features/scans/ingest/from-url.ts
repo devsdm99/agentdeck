@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import type { VirtualFile } from '@/shared/types';
 import { ExternalServiceError, ValidationError } from '@/shared/errors';
 import { MAX_FILE_BYTES, MAX_ZIP_BYTES } from './from-zip';
+import { isInterestingClaudePath } from './path-filter';
 
 export type GithubRepoRef = {
   owner: string;
@@ -119,10 +120,7 @@ async function collectInterestingFilesFromTarball(
 }
 
 function isInterestingPath(path: string): boolean {
-  if (path.includes('.claude/')) return true;
-  if (/(^|\/)CLAUDE\.md$/i.test(path)) return true;
-  if (/(^|\/)AGENTS\.md$/i.test(path)) return true;
-  return false;
+  return isInterestingClaudePath(path);
 }
 
 function stripTopLevelDir(path: string): string {

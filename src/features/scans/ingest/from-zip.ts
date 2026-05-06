@@ -2,6 +2,7 @@ import 'server-only';
 import JSZip from 'jszip';
 import type { VirtualFile } from '@/shared/types';
 import { ValidationError } from '@/shared/errors';
+import { isInterestingClaudePath } from './path-filter';
 
 export const MAX_ZIP_BYTES = 10 * 1024 * 1024;
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -42,11 +43,7 @@ export async function virtualFilesFromZip(buffer: ArrayBuffer): Promise<VirtualF
 }
 
 function isInterestingPath(path: string): boolean {
-  const normalized = stripTopLevelDir(path);
-  if (normalized.includes('.claude/')) return true;
-  if (/(^|\/)CLAUDE\.md$/i.test(normalized)) return true;
-  if (/(^|\/)AGENTS\.md$/i.test(normalized)) return true;
-  return false;
+  return isInterestingClaudePath(stripTopLevelDir(path));
 }
 
 function stripTopLevelDir(path: string): string {

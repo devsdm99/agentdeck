@@ -4,13 +4,15 @@ import type { ClaudeItemKind } from '@/shared/types';
 import { isAgentFile, parseAgent } from './parsers/agent';
 import { isHookSettingsFile, parseHooksFromSettings } from './parsers/hook';
 import { isSkillFile, parseSkill } from './parsers/skill';
+import { isInterestingClaudePath } from './ingest/path-filter';
 
-const CLAUDE_DIR_PREFIX = '.claude/';
 const ROOT_CLAUDE_MD = /(^|\/)CLAUDE\.md$/i;
 const ROOT_AGENTS_MD = /(^|\/)AGENTS\.md$/i;
 
 export function parseClaudeDirectory(input: VirtualFile[]): ParsedScan {
-  const claudeFiles = input.filter((f) => normalize(f.path).includes(CLAUDE_DIR_PREFIX));
+  const normalized = input.map((f) => ({ ...f, path: normalize(f.path) }));
+  const claudeFiles = normalized.filter((f) => isInterestingClaudePath(f.path));
+
   const agents = claudeFiles
     .filter(isAgentFile)
     .map(parseAgent)
@@ -24,19 +26,24 @@ export function parseClaudeDirectory(input: VirtualFile[]): ParsedScan {
   const hookFiles = claudeFiles.filter(isHookSettingsFile);
   const hooks = hookFiles.flatMap(parseHooksFromSettings);
 
-  const files: ParsedFile[] = claudeFiles.map((file) => {
-    const rawContent = new TextDecoder().decode(file.bytes);
-    return {
-      path: file.path,
-      kind: classifyFile(file),
-      rawContent,
-      sizeBytes: file.bytes.byteLength,
-      sha256: sha256Hex(file.bytes),
-    };
-  });
+  const agentPaths = new Set(agents.map((a) => a.path));
+  const skillPaths = new Set(skills.map((s) => s.path));
 
-  const claudeMdRaw = pickRootMarkdown(input, ROOT_CLAUDE_MD);
-  const agentsMdRaw = pickRootMarkdown(input, ROOT_AGENTS_MD);
+  const files: ParsedFile[] = claudeFiles
+    .filter((file) => isFileWorthPersisting(file, agentPaths, skillPaths))
+    .map((file) => {
+      const rawContent = new TextDecoder().decode(file.bytes);
+      return {
+        path: file.path,
+        kind: classifyFile(file, agentPaths, skillPaths),
+        rawContent,
+        sizeBytes: file.bytes.byteLength,
+        sha256: sha256Hex(file.bytes),
+      };
+    });
+
+  const claudeMdRaw = pickRootMarkdown(normalized, ROOT_CLAUDE_MD);
+  const agentsMdRaw = pickRootMarkdown(normalized, ROOT_AGENTS_MD);
 
   const stats = {
     agentsCount: agents.length,
@@ -51,10 +58,25 @@ export function parseClaudeDirectory(input: VirtualFile[]): ParsedScan {
   return { files, agents, skills, hooks, claudeMdRaw, agentsMdRaw, stats };
 }
 
-function classifyFile(file: VirtualFile): ClaudeItemKind {
-  const path = normalize(file.path);
-  if (isAgentFile(file)) return 'agent';
-  if (isSkillFile(file)) return 'skill';
+function isFileWorthPersisting(
+  file: VirtualFile,
+  agentPaths: Set<string>,
+  skillPaths: Set<string>,
+): boolean {
+  const path = file.path;
+  if (path.includes('.claude/')) return true;
+  if (agentPaths.has(path) || skillPaths.has(path)) return true;
+  return false;
+}
+
+function classifyFile(
+  file: VirtualFile,
+  agentPaths: Set<string>,
+  skillPaths: Set<string>,
+): ClaudeItemKind {
+  const path = file.path;
+  if (agentPaths.has(path)) return 'agent';
+  if (skillPaths.has(path)) return 'skill';
   if (isHookSettingsFile(file)) return 'config';
   if (/\.claude\/commands\//i.test(path)) return 'command';
   if (/\.claude\/output-styles\//i.test(path)) return 'output_style';

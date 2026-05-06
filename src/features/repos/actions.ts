@@ -10,12 +10,14 @@ import {
   type CreateRepoInput,
   addRepoFromUrlInputSchema,
 } from './schemas';
-import { getRepoBySlug } from './queries';
+import { getPrimarySourceForRepo, getRepoBySlug } from './queries';
 import { runScanFromUrl } from '@/features/scans/actions';
 import { requireUser } from '@/features/auth/queries';
 import {
   ConflictError,
   ExternalServiceError,
+  ForbiddenError,
+  NotFoundError,
   ValidationError,
 } from '@/shared/errors';
 import { parseGithubRepoUrl } from './service';
@@ -135,4 +137,59 @@ export async function addRepoFromUrlAction(
   revalidatePath('/dashboard');
   revalidatePath(`/repos/${createdRepo.slug}`);
   redirect(`/repos/${createdRepo.slug}`);
+}
+
+export type RescanRepoState = {
+  ok: boolean;
+  error?: string;
+};
+
+export async function rescanRepoAction(
+  _prev: RescanRepoState | undefined,
+  formData: FormData,
+): Promise<RescanRepoState> {
+  const user = await requireUser();
+  const slug = formData.get('slug');
+  if (typeof slug !== 'string' || slug.length === 0) {
+    return { ok: false, error: 'Slug del repo no recibido.' };
+  }
+
+  const repo = await getRepoBySlug(user.id, slug);
+  if (!repo) {
+    throw new NotFoundError(`Repo not found: ${slug}`);
+  }
+  if (repo.userId !== user.id) {
+    throw new ForbiddenError('No autorizado a re-escanear este repo');
+  }
+
+  const primary = await getPrimarySourceForRepo(repo.id);
+  if (!primary) {
+    return {
+      ok: false,
+      error: 'Este repo no tiene ninguna fuente. Conecta una URL primero.',
+    };
+  }
+  if (primary.kind !== 'url_public' || !primary.url) {
+    return {
+      ok: false,
+      error:
+        'De momento solo se puede re-escanear repos conectados por URL pública.',
+    };
+  }
+
+  try {
+    await runScanFromUrl({ repoId: repo.id, url: primary.url });
+  } catch (err) {
+    console.error('[rescanRepoAction] failed:', err);
+    const message =
+      err instanceof ExternalServiceError || err instanceof ValidationError
+        ? err.message
+        : err instanceof Error
+          ? `Falló el re-escaneo: ${err.message}`
+          : 'No se pudo re-escanear el repo. Inténtalo de nuevo en unos segundos.';
+    return { ok: false, error: message };
+  }
+
+  revalidatePath(`/repos/${repo.slug}`);
+  redirect(`/repos/${repo.slug}`);
 }

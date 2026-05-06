@@ -97,7 +97,8 @@ export const scanAgents = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('scan_agents_scan_name_unique').on(table.scanId, table.name),
+    uniqueIndex('scan_agents_scan_file_unique').on(table.scanId, table.fileId),
+    index('scan_agents_scan_name_idx').on(table.scanId, table.name),
     index('scan_agents_scan_idx').on(table.scanId),
   ],
 );
@@ -139,7 +140,8 @@ export const scanSkills = pgTable(
       .notNull(),
   },
   (table) => [
-    uniqueIndex('scan_skills_scan_name_unique').on(table.scanId, table.name),
+    uniqueIndex('scan_skills_scan_file_unique').on(table.scanId, table.fileId),
+    index('scan_skills_scan_name_idx').on(table.scanId, table.name),
     index('scan_skills_scan_idx').on(table.scanId),
   ],
 );

@@ -2,15 +2,15 @@ import { sha256Hex } from '@/utils/hash';
 import type { ParsedSkill, VirtualFile } from '@/shared/types';
 import { asString, asStringArray, parseFrontmatter } from './frontmatter';
 
-const SKILL_PATH_RE =
+const CANONICAL_SKILL_PATH_RE =
   /(^|\/)\.claude\/skills\/([^/]+)(?:\/SKILL\.md|\.md)$/i;
 
 export function isSkillFile(file: VirtualFile): boolean {
-  return SKILL_PATH_RE.test(file.path);
+  return CANONICAL_SKILL_PATH_RE.test(file.path);
 }
 
 export function parseSkill(file: VirtualFile): ParsedSkill | null {
-  const match = file.path.match(SKILL_PATH_RE);
+  const match = file.path.match(CANONICAL_SKILL_PATH_RE);
   if (!match) return null;
 
   const rawContent = new TextDecoder().decode(file.bytes);
