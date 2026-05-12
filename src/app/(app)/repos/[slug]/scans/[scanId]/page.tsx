@@ -3,10 +3,10 @@ import { notFound } from 'next/navigation';
 import { requireUser } from '@/features/auth/queries';
 import { getRepoBySlug } from '@/features/repos/queries';
 import {
-  getScanDetail,
-  type ScanAgentDetail,
-  type ScanHookDetail,
-  type ScanSkillDetail,
+  getScanSummary,
+  type ScanAgentSummary,
+  type ScanHookSummary,
+  type ScanSkillSummary,
 } from '@/features/scans/queries';
 import {
   Card,
@@ -29,11 +29,11 @@ export default async function ScanDetailPage({
   const repo = await getRepoBySlug(user.id, slug);
   if (!repo) notFound();
 
-  const detail = await getScanDetail(scanId, repo.id);
-  if (!detail) notFound();
+  const summary = await getScanSummary(scanId, repo.id);
+  if (!summary) notFound();
 
-  const { scan, stats, agents, skills, hooks } = detail;
-  const totalFiles = stats?.totalFiles ?? detail.files.length;
+  const { scan, stats, agents, skills, hooks } = summary;
+  const totalFiles = stats?.totalFiles ?? 0;
   const totalSize = stats?.totalSizeBytes ?? 0;
 
   return (
@@ -69,10 +69,14 @@ export default async function ScanDetailPage({
           </div>
         ) : null}
         <p className="text-sm text-muted-foreground">
-          {totalFiles} {totalFiles === 1 ? 'archivo' : 'archivos'} ·{' '}
-          {formatBytes(totalSize)} · {agents.length}{' '}
-          {agents.length === 1 ? 'agent' : 'agents'} · {skills.length}{' '}
-          {skills.length === 1 ? 'skill' : 'skills'} · {hooks.length}{' '}
+          <span className="tabular-nums">{totalFiles}</span>{' '}
+          {totalFiles === 1 ? 'archivo' : 'archivos'} ·{' '}
+          {formatBytes(totalSize)} ·{' '}
+          <span className="tabular-nums">{agents.length}</span>{' '}
+          {agents.length === 1 ? 'agent' : 'agents'} ·{' '}
+          <span className="tabular-nums">{skills.length}</span>{' '}
+          {skills.length === 1 ? 'skill' : 'skills'} ·{' '}
+          <span className="tabular-nums">{hooks.length}</span>{' '}
           {hooks.length === 1 ? 'hook' : 'hooks'}
         </p>
       </header>
@@ -84,7 +88,13 @@ export default async function ScanDetailPage({
       {agents.length > 0 ? (
         <Section title="Agents" count={agents.length}>
           {agents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
+            <Link
+              key={agent.id}
+              href={`/repos/${slug}/scans/${scanId}/agents/${agent.id}`}
+              className="group block focus:outline-none"
+            >
+              <AgentCard agent={agent} />
+            </Link>
           ))}
         </Section>
       ) : null}
@@ -121,7 +131,7 @@ function Section({
     <section className="flex flex-col gap-4">
       <h2 className="text-xl font-semibold tracking-tight">
         {title}{' '}
-        <span className="text-base font-normal text-muted-foreground">
+        <span className="text-base font-normal tabular-nums text-muted-foreground">
           ({count})
         </span>
       </h2>
@@ -155,10 +165,10 @@ function EmptyContent(): React.ReactElement {
 function AgentCard({
   agent,
 }: {
-  agent: ScanAgentDetail;
+  agent: ScanAgentSummary;
 }): React.ReactElement {
   return (
-    <Card className="border-border/70">
+    <Card className="border-border/70 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 group-focus-visible:ring-3 group-focus-visible:ring-ring/30">
       <CardHeader className="gap-1.5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <CardTitle className="text-base">{agent.name}</CardTitle>
@@ -170,37 +180,35 @@ function AgentCard({
           {agent.filePath}
         </p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {agent.description ? (
-          <p className="text-sm text-foreground">{agent.description}</p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          {agent.model ? (
-            <Pill label="model" value={agent.model} />
+      {agent.description || agent.model || agent.tools.length > 0 ? (
+        <CardContent className="flex flex-col gap-4">
+          {agent.description ? (
+            <p className="text-sm text-foreground">{agent.description}</p>
           ) : null}
-        </div>
-        {agent.tools.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Tools
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {agent.tools.map((tool) => (
-                <span
-                  key={tool}
-                  className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs"
-                >
-                  {tool}
-                </span>
-              ))}
+          {agent.model ? (
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <Pill label="model" value={agent.model} />
             </div>
-          </div>
-        ) : null}
-        <ContentBlocks
-          frontmatter={agent.frontmatter}
-          rawContent={agent.fileRawContent}
-        />
-      </CardContent>
+          ) : null}
+          {agent.tools.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Tools
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {agent.tools.map((tool) => (
+                  <span
+                    key={tool}
+                    className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-xs"
+                  >
+                    {tool}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+      ) : null}
     </Card>
   );
 }
@@ -208,7 +216,7 @@ function AgentCard({
 function SkillCard({
   skill,
 }: {
-  skill: ScanSkillDetail;
+  skill: ScanSkillSummary;
 }): React.ReactElement {
   return (
     <Card className="border-border/70">
@@ -223,37 +231,35 @@ function SkillCard({
           {skill.filePath}
         </p>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        {skill.description ? (
-          <p className="text-sm text-foreground">{skill.description}</p>
-        ) : null}
-        {skill.triggers.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Triggers
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {skill.triggers.map((trigger, idx) => (
-                <span
-                  key={idx}
-                  className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs"
-                >
-                  {trigger}
-                </span>
-              ))}
+      {skill.description || skill.triggers.length > 0 ? (
+        <CardContent className="flex flex-col gap-4">
+          {skill.description ? (
+            <p className="text-sm text-foreground">{skill.description}</p>
+          ) : null}
+          {skill.triggers.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Triggers
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {skill.triggers.map((trigger, idx) => (
+                  <span
+                    key={idx}
+                    className="rounded-md border border-border bg-muted/50 px-2 py-0.5 text-xs"
+                  >
+                    {trigger}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        ) : null}
-        <ContentBlocks
-          frontmatter={skill.frontmatter}
-          rawContent={skill.fileRawContent}
-        />
-      </CardContent>
+          ) : null}
+        </CardContent>
+      ) : null}
     </Card>
   );
 }
 
-function HookCard({ hook }: { hook: ScanHookDetail }): React.ReactElement {
+function HookCard({ hook }: { hook: ScanHookSummary }): React.ReactElement {
   return (
     <Card className="border-border/70">
       <CardHeader className="gap-1.5">
@@ -309,56 +315,6 @@ function Pill({
       </span>
       <span className="font-mono">{value}</span>
     </span>
-  );
-}
-
-function ContentBlocks({
-  frontmatter,
-  rawContent,
-}: {
-  frontmatter: unknown;
-  rawContent: string;
-}): React.ReactElement {
-  const hasFrontmatter =
-    frontmatter !== null &&
-    typeof frontmatter === 'object' &&
-    Object.keys(frontmatter as Record<string, unknown>).length > 0;
-
-  return (
-    <div className="flex flex-col gap-2">
-      {hasFrontmatter ? (
-        <details className="group rounded-md border border-border bg-muted/30">
-          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
-            Frontmatter
-            <span className="ml-2 text-[10px] opacity-60 group-open:hidden">
-              ▸
-            </span>
-            <span className="ml-2 text-[10px] opacity-60 hidden group-open:inline">
-              ▾
-            </span>
-          </summary>
-          <pre className="overflow-x-auto border-t border-border bg-background/40 p-3 font-mono text-xs">
-            {JSON.stringify(frontmatter, null, 2)}
-          </pre>
-        </details>
-      ) : null}
-      {rawContent ? (
-        <details className="group rounded-md border border-border bg-muted/30">
-          <summary className="cursor-pointer list-none px-3 py-2 text-xs font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground">
-            Contenido
-            <span className="ml-2 text-[10px] opacity-60 group-open:hidden">
-              ▸
-            </span>
-            <span className="ml-2 text-[10px] opacity-60 hidden group-open:inline">
-              ▾
-            </span>
-          </summary>
-          <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-border bg-background/40 p-3 font-mono text-xs">
-            {rawContent}
-          </pre>
-        </details>
-      ) : null}
-    </div>
   );
 }
 

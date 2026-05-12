@@ -216,3 +216,143 @@ export async function getScanDetail(
 function inIds(column: PgColumn, ids: string[]) {
   return inArray(column, ids);
 }
+
+export type ScanAgentSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  model: string | null;
+  filePath: string;
+  fileSizeBytes: number;
+  tools: string[];
+};
+
+export type ScanSkillSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  filePath: string;
+  fileSizeBytes: number;
+  triggers: string[];
+};
+
+export type ScanHookSummary = {
+  id: string;
+  event: ScanHook['event'];
+  matcher: string | null;
+  command: string;
+  timeoutMs: number | null;
+  filePath: string;
+};
+
+export type ScanSummary = {
+  scan: Scan;
+  stats: ScanStats | null;
+  agents: ScanAgentSummary[];
+  skills: ScanSkillSummary[];
+  hooks: ScanHookSummary[];
+};
+
+export async function getScanSummary(
+  scanId: string,
+  repoId: string,
+): Promise<ScanSummary | null> {
+  const scanRows = await db
+    .select()
+    .from(scans)
+    .where(eq(scans.id, scanId))
+    .limit(1);
+  const scan = scanRows[0];
+  if (!scan || scan.repoId !== repoId) return null;
+
+  const [statsRows, agentRows, skillRows, hookRows] = await Promise.all([
+    db
+      .select()
+      .from(scanStats)
+      .where(eq(scanStats.scanId, scan.id))
+      .limit(1),
+    db
+      .select({
+        id: scanAgents.id,
+        name: scanAgents.name,
+        description: scanAgents.description,
+        model: scanAgents.model,
+        filePath: scanFiles.path,
+        fileSizeBytes: scanFiles.sizeBytes,
+      })
+      .from(scanAgents)
+      .innerJoin(scanFiles, eq(scanFiles.id, scanAgents.fileId))
+      .where(eq(scanAgents.scanId, scan.id))
+      .orderBy(asc(scanAgents.name)),
+    db
+      .select({
+        id: scanSkills.id,
+        name: scanSkills.name,
+        description: scanSkills.description,
+        filePath: scanFiles.path,
+        fileSizeBytes: scanFiles.sizeBytes,
+      })
+      .from(scanSkills)
+      .innerJoin(scanFiles, eq(scanFiles.id, scanSkills.fileId))
+      .where(eq(scanSkills.scanId, scan.id))
+      .orderBy(asc(scanSkills.name)),
+    db
+      .select({
+        id: scanHooks.id,
+        event: scanHooks.event,
+        matcher: scanHooks.matcher,
+        command: scanHooks.command,
+        timeoutMs: scanHooks.timeoutMs,
+        filePath: scanFiles.path,
+      })
+      .from(scanHooks)
+      .innerJoin(scanFiles, eq(scanFiles.id, scanHooks.fileId))
+      .where(eq(scanHooks.scanId, scan.id))
+      .orderBy(asc(scanHooks.event), asc(scanHooks.runOrder)),
+  ]);
+
+  const agentIds = agentRows.map((a) => a.id);
+  const skillIds = skillRows.map((s) => s.id);
+
+  const [allTools, allTriggers] = await Promise.all([
+    agentIds.length > 0
+      ? db
+          .select()
+          .from(scanAgentTools)
+          .where(inIds(scanAgentTools.agentId, agentIds))
+      : Promise.resolve([]),
+    skillIds.length > 0
+      ? db
+          .select()
+          .from(scanSkillTriggers)
+          .where(inIds(scanSkillTriggers.skillId, skillIds))
+      : Promise.resolve([]),
+  ]);
+
+  const toolsByAgent = new Map<string, string[]>();
+  for (const tool of allTools) {
+    const list = toolsByAgent.get(tool.agentId) ?? [];
+    list.push(tool.toolName);
+    toolsByAgent.set(tool.agentId, list);
+  }
+  const triggersBySkill = new Map<string, string[]>();
+  for (const trigger of allTriggers) {
+    const list = triggersBySkill.get(trigger.skillId) ?? [];
+    list.push(trigger.triggerText);
+    triggersBySkill.set(trigger.skillId, list);
+  }
+
+  return {
+    scan,
+    stats: statsRows[0] ?? null,
+    agents: agentRows.map((a) => ({
+      ...a,
+      tools: (toolsByAgent.get(a.id) ?? []).sort(),
+    })),
+    skills: skillRows.map((s) => ({
+      ...s,
+      triggers: triggersBySkill.get(s.id) ?? [],
+    })),
+    hooks: hookRows,
+  };
+}
